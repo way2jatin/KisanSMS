@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">KisanSMS</string>
+    <string name="backend_url">http://2dfa3ea9.ngrok.io/sms</string>
+</resources>
