@@ -3,6 +3,7 @@ package com.jatin.kisansms.activity;
 import android.database.Cursor;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Message;
 import android.support.design.widget.TabLayout;
 import android.support.v4.view.ViewPager;
 import android.support.v7.app.AppCompatActivity;
@@ -15,6 +16,7 @@ import com.jatin.kisansms.adapter.SMSTabsAdapter;
 import com.jatin.kisansms.db.SmsDb;
 import com.jatin.kisansms.model.Contact;
 import com.jatin.kisansms.model.SMSDetail;
+import com.jatin.kisansms.util.ApiCall;
 import com.jatin.kisansms.util.Log;
 
 import org.json.JSONObject;
@@ -47,9 +49,6 @@ public class MainActivity extends AppCompatActivity {
         insertContactData();
         retrieveSMSHistory();
 
-        viewPager.setAdapter(new SMSTabsAdapter(getSupportFragmentManager(),contacts,smsDetails));
-        tabsStrip.setupWithViewPager(viewPager);
-
     }
 
     private void retrieveSMSHistory() {
@@ -71,77 +70,37 @@ public class MainActivity extends AppCompatActivity {
 
 
     private void insertContactData() {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    JSONObject object = ApiCall.getJsonFromUrl("https://way2jatin.github.io/contacts.json");
+                    String contactJSON = object.getString("contacts");
+                    ObjectMapper mapper = new ObjectMapper();
+                    contacts = mapper.readValue(contactJSON,new TypeReference<List<Contact>>(){});
 
-        String strJson = "{\n" +
-                "    \"contacts\": [\n" +
-                "        {\n" +
-                "                \"id\": \"1\",\n" +
-                "                \"firstName\": \"Jatin\",\n" +
-                "\t\t\"lastName\" : \"Jha\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"2\",\n" +
-                "                \"firstName\": \"Abhishek\",\n" +
-                "\t\t\"lastName\" : \"Sharma\",\n" +
-                "                \"mobile\": \"+91 7053265863\"\n" +
-                "        },{\n" +
-                "                \"id\": \"3\",\n" +
-                "                \"firstName\": \"Kanav\",\n" +
-                "\t\t\"lastName\" : \"Singla\",\n" +
-                "                \"mobile\": \"+91 8570808777\"\n" +
-                "        },{\n" +
-                "                \"id\": \"4\",\n" +
-                "                \"firstName\": \"Abhijeet\",\n" +
-                "\t\t\"lastName\" : \"Singh\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"5\",\n" +
-                "                \"firstName\": \"Nikhil\",\n" +
-                "\t\t\"lastName\" : \"Yadav\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"5\",\n" +
-                "                \"firstName\": \"Gregory\",\n" +
-                "\t\t\"lastName\" : \"George\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"6\",\n" +
-                "                \"firstName\": \"Kisan\",\n" +
-                "\t\t\"lastName\" : \"Network\",\n" +
-                "                \"mobile\": \"+91 9971792703\"\n" +
-                "        },{\n" +
-                "                \"id\": \"7\",\n" +
-                "                \"firstName\": \"Amit\",\n" +
-                "\t\t\"lastName\" : \"Modi\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"8\",\n" +
-                "                \"firstName\": \"Saurabh\",\n" +
-                "\t\t\"lastName\" : \"Sharma\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"9\",\n" +
-                "                \"firstName\": \"Ankur\",\n" +
-                "\t\t\"lastName\" : \"Jain\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        },{\n" +
-                "                \"id\": \"10\",\n" +
-                "                \"firstName\": \"Neha\",\n" +
-                "\t\t\"lastName\" : \"Yadav\",\n" +
-                "                \"mobile\": \"+91 9536462481\"\n" +
-                "        }\n" +
-                "    ]\n" +
-                "}";
+                    Bundle bundle = new Bundle();
+                    bundle.putParcelableArrayList("DATA",contacts);
+                    Message message = new Message();
+                    message.setData(bundle);
+                    refreshItemListHandler.sendMessage(message);
+                }catch (Exception e){
+                    Log.e("SMSError",e.getMessage(),e);
+                }
+            }
+        }).start();
 
-        try {
-            JSONObject object = new JSONObject(strJson);
-            String contactJSON = object.getString("contacts");
-            ObjectMapper mapper = new ObjectMapper();
-            contacts = mapper.readValue(contactJSON,new TypeReference<List<Contact>>(){});
-        }catch (Exception e){
-            Log.e("SMSError",e.getMessage(),e);
-        }
     }
+
+    private Handler refreshItemListHandler = new Handler(new Handler.Callback() {
+        @Override
+        public boolean handleMessage(Message message) {
+            contacts = message.getData().getParcelableArrayList("DATA");
+            viewPager.setAdapter(new SMSTabsAdapter(getSupportFragmentManager(),contacts,smsDetails));
+            tabsStrip.setupWithViewPager(viewPager);
+            return true;
+        }
+    });
 
     @Override
     public void onBackPressed() {
